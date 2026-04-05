@@ -13,16 +13,17 @@ datasource db {
 }
 
 model User {
-  id               String  @id @default(uuid())
-  full_name        String
+  id               String   @id @default(uuid())
+  fullName        String
   address          String
   religion         String
   sex              String
   phone            String
-  email            String  @unique
+  birthDate        DateTime
+  email            String   @unique
   password         String
-  isVerified       Boolean @default(false)
-  isForgotPassword Boolean @default(false)
+  isVerified       Boolean  @default(false)
+  isForgotPassword Boolean  @default(false)
 
   role Role @default(USER)
 

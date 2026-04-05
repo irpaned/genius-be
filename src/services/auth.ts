@@ -19,6 +19,7 @@ async function registerService(dto: RegisterRequest) {
     return await prisma.user.create({
       data: {
         ...dto,
+        birthDate: new Date(dto.birthDate),
         password: hashedPassword,
       },
     });
@@ -127,19 +128,31 @@ async function loginService(dto: LoginRequest) {
     const isPasswordValid = await bcrypt.compare(dto.password, user.password);
 
     if (!isPasswordValid) {
-      throw new Error("Invalid password");
+      throw new Error("User not found!");
     }
 
-    delete user.password;
+    // delete password
+    const { password, ...userWithoutPassword } = user;
 
     const jwtSecret = process.env.JWT_SECRET;
 
-    const token = jwt.sign(user, jwtSecret);
+    const token = jwt.sign(userWithoutPassword, jwtSecret!);
 
-    return { token, user };
+    return { token };
   } catch (error) {
     throw new Error((error as Error).message);
   }
+}
+
+async function getUserService(id: string) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id },
+      // include: {enrollments : true}
+    });
+
+    return user;
+  } catch (error) {}
 }
 
 export {
@@ -147,4 +160,5 @@ export {
   createEmailVerificationService,
   verifyEmailService,
   loginService,
+  getUserService,
 };

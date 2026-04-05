@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import {
   createEmailVerificationService,
+  getUserService,
   loginService,
   registerService,
   verifyEmailService,
@@ -130,4 +131,12 @@ export async function Login(req: Request, res: Response) {
       message: error.message || "Login failed",
     });
   }
+}
+
+export async function getUser(req: Request, res: Response) {
+  try {
+    const user = res.locals.user;
+    const response = await getUserService(user.id);
+    res.json(response);
+  } catch (error) {}
 }

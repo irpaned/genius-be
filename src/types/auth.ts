@@ -4,8 +4,9 @@ export type RegisterRequest = {
   sex: string;
   religion: string;
   password: string;
-  full_name: string;
+  fullName: string;
   address: string;
+  birthDate: string;
 };
 
 export type CustomJwtPayload = {
@@ -16,4 +17,4 @@ export type CustomJwtPayload = {
 export type LoginRequest = {
   email: string;
   password: string;
-}
+};
