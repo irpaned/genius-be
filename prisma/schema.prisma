@@ -13,12 +13,136 @@ datasource db {
 }
 
 model User {
-  id        String @id @default(uuid())
-  full_name String
-  address   String
-  religion  String
-  sex       String
-  phone     String
-  email     String @unique
-  password  String
+  id               String   @id @default(uuid())
+  fullName        String
+  address          String
+  religion         String
+  sex              String
+  phone            String
+  birthDate        DateTime
+  email            String   @unique
+  password         String
+  isVerified       Boolean  @default(false)
+  isForgotPassword Boolean  @default(false)
+
+  role Role @default(USER)
+
+  enrollments Enrollment[]
+  slots       Slot[]
+
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  emailVerificationTokens EmailVerificationToken[]
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+model Course {
+  id          String         @id @default(uuid())
+  title       String
+  description String
+  price       Int
+  category    CourseCategory
+
+  packages    CoursePackage[]
+  enrollments Enrollment[]
+  schedules   Schedule[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum CourseCategory {
+  KOMPUTER
+  MOBIL
+  ALAT_BERAT
+}
+
+model CoursePackage {
+  id       String @id @default(uuid())
+  courseId String
+  name     String
+  price    Int
+
+  totalSessions      Int
+  durationPerSession Int
+
+  course      Course       @relation(fields: [courseId], references: [id])
+  enrollments Enrollment[]
+}
+
+model Enrollment {
+  id                String           @id @default(uuid())
+  userId            String
+  courseId          String
+  packageId         String
+  remainingSessions Int
+  status            EnrollmentStatus @default(ACTIVE)
+
+  user    User          @relation(fields: [userId], references: [id])
+  course  Course        @relation(fields: [courseId], references: [id])
+  package CoursePackage @relation(fields: [packageId], references: [id])
+
+  @@unique([userId, courseId]) // biar tidak double daftar course sama
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+model Slot {
+  id           String  @id @default(uuid())
+  scheduleId   String
+  carNumber    Int
+  userId       String?
+  instructorId String?
+
+  schedule   Schedule    @relation(fields: [scheduleId], references: [id])
+  user       User?       @relation(fields: [userId], references: [id])
+  instructor Instructor? @relation(fields: [instructorId], references: [id])
+
+  @@unique([scheduleId, carNumber])
+}
+
+model Schedule {
+  id        String   @id @default(uuid())
+  courseId  String
+  date      DateTime
+  startTime String
+  endTime   String
+
+  slots Slot[]
+
+  course Course @relation(fields: [courseId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Instructor {
+  id       String  @id @default(uuid())
+  name     String
+  phone    String
+  isActive Boolean @default(true)
+
+  slots Slot[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
 }

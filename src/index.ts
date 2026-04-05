@@ -2,7 +2,9 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import { Register } from "./controllers/auth";
+
+import { getUser, Login, Register, VerifyEmail } from "./controllers/auth";
+import { authenticate } from "../middlewares/authenticate";
 
 // dotenv.config();
 
@@ -18,7 +20,13 @@ app.get("/", (req, res) => {
   res.send("Hello World!");
 });
 
-routerv1.post("/register", Register);
+// AUTH
+routerv1.post("/auth/register", Register);
+routerv1.get("/auth/verify-email", VerifyEmail);
+routerv1.post("/auth/login", Login);
+
+// User
+routerv1.get("/user", authenticate, getUser);
 
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);

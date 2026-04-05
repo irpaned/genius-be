@@ -2,8 +2,10 @@
 import bcrypt from "bcrypt";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../generated/prisma/client";
-
-import { RegisterRequest } from "../types/auth";
+import jwt from "jsonwebtoken";
+import { CustomJwtPayload, LoginRequest, RegisterRequest } from "../types/auth";
+import { JwtPayload } from "jsonwebtoken";
+import crypto from "crypto";
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
@@ -11,19 +13,37 @@ const prisma = new PrismaClient({
 
 async function registerService(dto: RegisterRequest) {
   try {
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(dto.password, saltRounds);
-    dto.password = hashedPassword;
+    const hashedPassword = await bcrypt.hash(dto.password, 13);
+
     console.log(dto);
     return await prisma.user.create({
       data: {
-        email: dto.email,
-        phone: dto.phone,
-        full_name: dto.full_name,
-        password: dto.password,
-        sex: dto.sex,
-        religion: dto.religion,
-        address: dto.address,
+        ...dto,
+        birthDate: new Date(dto.birthDate),
+        password: hashedPassword,
+      },
+    });
+  } catch (error) {
+    throw new Error((error as Error).message);
+  }
+}
+
+async function createEmailVerificationService(
+  token: string,
+  userId: string,
+  expiresAt: Date,
+) {
+  try {
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+    return await prisma.emailVerificationToken.create({
+      data: {
+        token: hashedToken,
+        expiresAt,
+        user: {
+          connect: {
+            id: userId,
+          },
+        },
       },
     });
   } catch (error) {
@@ -31,4 +51,114 @@ async function registerService(dto: RegisterRequest) {
   }
 }
 
-export { registerService };
+async function verifyEmailService(token: string) {
+  try {
+    // Check if the token is for email verification
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET!,
+    ) as CustomJwtPayload;
+    if (decoded.purpose !== "email_verification") {
+      throw new Error("Invalid token purpose");
+    }
+
+    console.log("passed 1");
+
+    // Find the token record and include the associated user
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+    const record = await prisma.emailVerificationToken.findUnique({
+      where: { token: hashedToken },
+      include: { user: true },
+    });
+
+    console.log("passed 2", record);
+
+    // Check if the token exists and is not expired
+    if (!record) {
+      throw new Error("Invalid token");
+    } else {
+      console.log("token exists");
+    }
+    if (record.expiresAt < new Date()) {
+      throw new Error("Token expired");
+    } else {
+      console.log("token is valid");
+    }
+    if (record.user.isVerified) {
+      throw new Error("User already verified");
+    } else {
+      console.log("user is not verified yet");
+    }
+
+    // Update the user's isVerified field to true and delete the token
+    const user = record?.user.id;
+    const result = await prisma.$transaction([
+      prisma.user.update({
+        where: { id: user },
+        data: { isVerified: true },
+      }),
+      prisma.emailVerificationToken.delete({
+        where: { token: hashedToken },
+      }),
+    ]);
+
+    console.log("result[0]", result[0]);
+
+    return result[0]; // Return the user update result
+  } catch (error) {
+    throw new String(error);
+  }
+}
+
+async function loginService(dto: LoginRequest) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    if (!user.isVerified) {
+      throw new Error("Email not verified");
+    }
+
+    const isPasswordValid = await bcrypt.compare(dto.password, user.password);
+
+    if (!isPasswordValid) {
+      throw new Error("User not found!");
+    }
+
+    // delete password
+    const { password, ...userWithoutPassword } = user;
+
+    const jwtSecret = process.env.JWT_SECRET;
+
+    const token = jwt.sign(userWithoutPassword, jwtSecret!);
+
+    return { token };
+  } catch (error) {
+    throw new Error((error as Error).message);
+  }
+}
+
+async function getUserService(id: string) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id },
+      // include: {enrollments : true}
+    });
+
+    return user;
+  } catch (error) {}
+}
+
+export {
+  registerService,
+  createEmailVerificationService,
+  verifyEmailService,
+  loginService,
+  getUserService,
+};
