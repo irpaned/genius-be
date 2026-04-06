@@ -1,12 +1,11 @@
-// import dotenv from "dotenv";
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
 
-import { getUser, Login, Register, VerifyEmail } from "./controllers/auth";
+import { Login, Register, VerifyEmail } from "./controllers/auth";
 import { authenticate } from "../middlewares/authenticate";
-
-// dotenv.config();
+import { getUser } from "./controllers/user";
+import { getAllUsers, getUserDetail } from "./controllers/admin";
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -25,8 +24,12 @@ routerv1.post("/auth/register", Register);
 routerv1.get("/auth/verify-email", VerifyEmail);
 routerv1.post("/auth/login", Login);
 
-// User
-routerv1.get("/user", authenticate, getUser);
+// USER
+routerv1.get("/user", authenticate, getUser); // for the user himself to see his data
+
+// ADMIN
+routerv1.get("/users/:id", authenticate, getUserDetail); // for admin to see detail user
+routerv1.get("/users", authenticate, getAllUsers); // for admin to see all users (table user)
 
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
