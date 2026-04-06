@@ -1,13 +1,13 @@
 import { Request, Response } from "express";
+import jwt from "jsonwebtoken";
+import { transporter } from "../../libs/nodemailer";
 import {
   createEmailVerificationService,
-  getUserService,
   loginService,
   registerService,
   verifyEmailService,
 } from "../services/auth";
-import jwt from "jsonwebtoken";
-import { transporter } from "../../libs/nodemailer";
+import { successResponse } from "../utils/response";
 
 export async function Register(req: Request, res: Response) {
   try {
@@ -30,7 +30,8 @@ export async function Register(req: Request, res: Response) {
     );
 
     // 3. Send verification email
-    const fullUrl = req.protocol + "://" + req.get("host");
+    // const fullUrl = req.protocol + "://" + req.get("host");
+    const frontendUrl = process.env.FRONTEND_URL;
     const info = await transporter.sendMail({
       from: '"Genius Komputer" <muhammadirfan2823@gmail.com>', // sender address
       to: response.email, // list of receivers
@@ -59,7 +60,7 @@ export async function Register(req: Request, res: Response) {
 
             <!-- Button -->
             <a 
-              href="${fullUrl}/api/v1/auth/verify-email?token=${token}"
+              href="${frontendUrl}/verify-email/${token}"
               style="
                 display: inline-block;
                 background: #0066ff;
@@ -125,18 +126,10 @@ export async function VerifyEmail(req: Request, res: Response) {
 export async function Login(req: Request, res: Response) {
   try {
     const response = await loginService(req.body);
-    res.json(response);
+    return successResponse(res, response, "Login successful");
   } catch (error: any) {
     return res.status(400).json({
       message: error.message || "Login failed",
     });
   }
-}
-
-export async function getUser(req: Request, res: Response) {
-  try {
-    const user = res.locals.user;
-    const response = await getUserService(user.id);
-    res.json(response);
-  } catch (error) {}
 }

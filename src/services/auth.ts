@@ -13,6 +13,27 @@ const prisma = new PrismaClient({
 
 async function registerService(dto: RegisterRequest) {
   try {
+    const isExistingUser = await prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (
+      isExistingUser?.email === dto.email &&
+      isExistingUser?.isVerified === true
+    ) {
+      throw new Error("Email already registered");
+    } else if (
+      isExistingUser?.email === dto.email &&
+      isExistingUser?.isVerified === false
+    ) {
+      await prisma.user.delete({
+        where: { email: dto.email },
+        include: { emailVerificationTokens: true },
+      });
+      console.log("user deleted");
+    }
+
+    // Hash the password
     const hashedPassword = await bcrypt.hash(dto.password, 13);
 
     console.log(dto);
@@ -62,8 +83,6 @@ async function verifyEmailService(token: string) {
       throw new Error("Invalid token purpose");
     }
 
-    console.log("passed 1");
-
     // Find the token record and include the associated user
     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
@@ -71,8 +90,6 @@ async function verifyEmailService(token: string) {
       where: { token: hashedToken },
       include: { user: true },
     });
-
-    console.log("passed 2", record);
 
     // Check if the token exists and is not expired
     if (!record) {
@@ -144,21 +161,11 @@ async function loginService(dto: LoginRequest) {
   }
 }
 
-async function getUserService(id: string) {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id },
-      // include: {enrollments : true}
-    });
 
-    return user;
-  } catch (error) {}
-}
 
 export {
   registerService,
   createEmailVerificationService,
   verifyEmailService,
   loginService,
-  getUserService,
 };
